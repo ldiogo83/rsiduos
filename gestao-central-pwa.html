@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+  <meta name="theme-color" content="#0F172A"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <meta name="apple-mobile-web-app-title" content="Gestão Central"/>
+  <title>Gestão Central de Resíduos</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@700;800&display=swap" rel="stylesheet"/>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    html,body{height:100%;background:#F8FAFC;font-family:'DM Sans',sans-serif}
+    body{max-width:480px;margin:0 auto;padding-bottom:90px;overflow-x:hidden}
+
+    .header{background:linear-gradient(135deg,#0F172A 0%,#1E293B 100%);padding:max(52px,calc(env(safe-area-inset-top)+20px)) 20px 20px;color:#FFF}
+    .header-sub{font-size:11px;color:rgba(255,255,255,.5);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:4px}
+    .header-title{font-family:'Space Grotesk',sans-serif;font-size:22px;font-weight:800}
+    .sync-row{display:flex;justify-content:space-between;align-items:center;margin-top:16px}
+    .sync-ts{font-size:12px;color:rgba(255,255,255,.4)}
+    .btn-sync{background:rgba(255,255,255,.12);border:none;color:#FFF;border-radius:10px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif}
+    .resumo-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:16px}
+    .resumo-card{background:rgba(255,255,255,.08);border-radius:12px;padding:10px 12px}
+    .resumo-label{font-size:10px;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:.8px}
+    .resumo-num{font-size:22px;font-weight:800;margin-top:2px}
+
+    .tabs{display:flex;margin:16px 16px 0;background:#E2E8F0;border-radius:14px;padding:4px}
+    .tab-btn{flex:1;padding:9px 4px;border-radius:11px;border:none;background:transparent;color:#94A3B8;font-weight:500;font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .2s;white-space:nowrap}
+    .tab-btn.active{background:#FFF;color:#0F172A;font-weight:700;box-shadow:0 2px 8px rgba(0,0,0,.10)}
+
+    .content{padding:16px 16px 0}
+
+    /* Cards estação */
+    .card-est{background:#FFF;border-radius:18px;padding:18px;margin-bottom:14px;box-shadow:0 2px 16px rgba(0,0,0,.06);transition:box-shadow .2s}
+    .card-est.alerta{box-shadow:0 0 0 2px #FCA5A530,0 2px 16px rgba(0,0,0,.07)}
+    .card-est-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px}
+    .card-est-icon{width:40px;height:40px;border-radius:12px;display:flex;align-items:center;justify-content:center}
+    .card-est-nome{font-weight:800;color:#0F172A;font-size:16px}
+    .card-est-sub{font-size:12px;color:#94A3B8}
+    .tags-urgentes{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+    .tag-urgente{border-radius:8px;padding:3px 9px;font-size:11px;font-weight:700}
+    .btn-detalhe{margin-top:14px;width:100%;padding:10px;border-radius:11px;font-weight:700;font-size:13px;cursor:pointer;font-family:'DM Sans',sans-serif}
+
+    .barra-wrap{background:#F1F5F9;border-radius:99px;overflow:hidden}
+    .barra-fill{border-radius:99px;transition:width .5s cubic-bezier(.4,0,.2,1)}
+
+    /* Detalhe estação */
+    .detalhe-header{padding:max(52px,calc(env(safe-area-inset-top)+20px)) 20px 20px;color:#FFF}
+    .btn-voltar{background:rgba(255,255,255,.15);border:none;color:#FFF;border-radius:10px;padding:6px 14px;font-size:13px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;margin-bottom:16px}
+    .section-label{font-size:12px;font-weight:700;color:#94A3B8;letter-spacing:1px;text-transform:uppercase;margin:16px 0 10px}
+    .dep-card{background:#FFF;border-radius:14px;padding:14px 16px;margin-bottom:10px;box-shadow:0 1px 6px rgba(0,0,0,.06);border-left:4px solid #CBD5E1}
+    .dep-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+    .dep-info{display:flex;align-items:center;gap:8px}
+    .dep-nome{font-weight:700;color:#0F172A;font-size:14px}
+    .dep-ts{font-size:11px;color:#94A3B8}
+    .dep-pct{font-weight:800;font-size:18px}
+    .dep-btns{display:flex;gap:8px;margin-top:10px}
+    .btn-nivel{flex:1;padding:7px;border-radius:9px;font-weight:700;font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif}
+    .btn-despejo{flex:1;padding:7px;border-radius:9px;border:1.5px solid #E2E8F0;background:#F8FAFC;color:#374151;font-weight:700;font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif}
+    .btn-despejo.urgente{background:#DC2626;color:#FFF;border-color:#DC2626}
+    .dep-ultimo-despejo{font-size:11px;color:#94A3B8;margin-top:6px}
+
+    /* Alertas e despejos */
+    .alerta-card{background:#FFF;border-radius:14px;padding:14px 16px;margin-bottom:10px;box-shadow:0 1px 6px rgba(0,0,0,.06);border-left:4px solid #DC2626}
+    .despejo-card{background:#FFF;border-radius:14px;padding:14px 16px;margin-bottom:10px;box-shadow:0 1px 6px rgba(0,0,0,.06)}
+    .vazio{text-align:center;color:#94A3B8;padding:60px 0;font-size:15px}
+
+    /* Badge nivel */
+    .badge{border-radius:6px;padding:2px 8px;font-size:11px;font-weight:700;letter-spacing:.5px}
+
+    /* Modal */
+    .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:200;display:flex;align-items:flex-end;justify-content:center;opacity:0;pointer-events:none;transition:opacity .25s}
+    .modal-overlay.open{opacity:1;pointer-events:all}
+    .modal-sheet{background:#FFF;border-radius:20px 20px 0 0;padding:24px 24px max(36px,calc(env(safe-area-inset-bottom)+20px));width:100%;max-width:480px;box-shadow:0 -8px 32px rgba(0,0,0,.15);transform:translateY(100%);transition:transform .3s cubic-bezier(.4,0,.2,1);max-height:85vh;overflow-y:auto}
+    .modal-overlay.open .modal-sheet{transform:translateY(0)}
+    .modal-handle{width:36px;height:4px;background:#E2E8F0;border-radius:4px;margin:0 auto 20px}
+    .modal-titulo{font-size:17px;font-weight:700;color:#0F172A;margin-bottom:4px}
+    .modal-sub{font-size:13px;color:#64748B;margin-bottom:20px}
+    .slider-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+    .slider-label{font-size:13px;font-weight:600;color:#374151}
+    .slider-val{font-size:26px;font-weight:800}
+    input[type=range]{width:100%;cursor:pointer}
+    .atalhos{display:flex;gap:8px;margin:14px 0;flex-wrap:wrap}
+    .btn-atalho{padding:5px 12px;border-radius:20px;border:2px solid #E2E8F0;background:#FFF;color:#64748B;font-weight:600;font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .2s}
+    .btn-atalho.sel{border-color:var(--cor);background:var(--cor);color:#FFF}
+    .modal-input{width:100%;padding:12px 14px;border-radius:12px;border:1.5px solid #E2E8F0;font-size:15px;font-family:'DM Sans',sans-serif;outline:none;color:#0F172A}
+    .modal-btns{display:flex;gap:10px;margin-top:20px}
+    .btn-cancelar{flex:1;padding:13px;border-radius:12px;border:none;background:#F1F5F9;color:#64748B;font-weight:700;font-size:14px;cursor:pointer;font-family:'DM Sans',sans-serif}
+    .btn-confirmar{flex:2;padding:13px;border-radius:12px;border:none;color:#FFF;font-weight:700;font-size:14px;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .2s}
+
+    .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);background:#0F172A;color:#FFF;padding:10px 20px;border-radius:20px;font-size:13px;font-weight:600;z-index:2000;transition:transform .3s cubic-bezier(.4,0,.2,1);white-space:nowrap}
+    .toast.show{transform:translateX(-50%) translateY(0)}
+  </style>
+<link rel="manifest" href="data:application/manifest+json;base64,eyJuYW1lIjoiR2VzdMOjbyBDZW50cmFsIGRlIFJlc8OtZHVvcyIsInNob3J0X25hbWUiOiJHZXN0w6NvIENlbnRyYWwiLCJzdGFydF91cmwiOiJodHRwczovL2xkaW9nbzgzLmdpdGh1Yi5pby9yc2lkdW9zL2dlc3Rhby1jZW50cmFsLXB3YS5odG1sIiwiZGlzcGxheSI6InN0YW5kYWxvbmUiLCJiYWNrZ3JvdW5kX2NvbG9yIjoiIzBGMTcyQSIsInRoZW1lX2NvbG9yIjoiIzBGMTcyQSIsImljb25zIjpbeyJzcmMiOiJkYXRhOmltYWdlL3N2Zyt4bWwsJTNDc3ZnJTIweG1sbnMlM0QlMjJodHRwJTNBLy93d3cudzMub3JnLzIwMDAvc3ZnJTIyJTIwdmlld0JveCUzRCUyMjAlMjAwJTIwNTEyJTIwNTEyJTIyJTNFJTNDcmVjdCUyMHdpZHRoJTNEJTIyNTEyJTIyJTIwaGVpZ2h0JTNEJTIyNTEyJTIyJTIwcnglM0QlMjIxMTIlMjIlMjBmaWxsJTNEJTIyJTIzMEYxNzJBJTIyLyUzRSUzQ3RleHQlMjB4JTNEJTIyMjU2JTIyJTIweSUzRCUyMjMzMCUyMiUyMGZvbnQtc2l6ZSUzRCUyMjI2MCUyMiUyMHRleHQtYW5jaG9yJTNEJTIybWlkZGxlJTIyJTIwZm9udC1mYW1pbHklM0QlMjJBcHBsZSUyMENvbG9yJTIwRW1vamklMkNTZWdvZSUyMFVJJTIwRW1vamklMkNzYW5zLXNlcmlmJTIyJTNFJUYwJTlGJThGJUFEJTNDL3RleHQlM0UlM0Mvc3ZnJTNFIiwic2l6ZXMiOiI1MTJ4NTEyIiwidHlwZSI6ImltYWdlL3N2Zyt4bWwifV19">
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20512%20512%22%3E%3Crect%20width%3D%22512%22%20height%3D%22512%22%20rx%3D%22112%22%20fill%3D%22%230F172A%22/%3E%3Ctext%20x%3D%22256%22%20y%3D%22330%22%20font-size%3D%22260%22%20text-anchor%3D%22middle%22%20font-family%3D%22Apple%20Color%20Emoji%2CSegoe%20UI%20Emoji%2Csans-serif%22%3E%F0%9F%8F%AD%3C/text%3E%3C/svg%3E">
+</head>
+<body>
+
+<div id="app"></div>
+<div class="toast" id="toast"></div>
+
+<!-- Modal Nível -->
+<div class="modal-overlay" id="modalNivel" onclick="fecharModalNivel(event)">
+  <div class="modal-sheet" onclick="event.stopPropagation()">
+    <div class="modal-handle"></div>
+    <div class="modal-titulo">Atualizar Nível</div>
+    <div class="modal-sub" id="mnSub"></div>
+    <div class="slider-row">
+      <span class="slider-label">Enchimento</span>
+      <span class="slider-val" id="mnVal">0%</span>
+    </div>
+    <input type="range" id="mnSlider" min="0" max="100" step="5" value="0" oninput="mnUpdate(this.value)"/>
+    <div class="atalhos" id="mnAtalhos"></div>
+    <div class="modal-btns">
+      <button class="btn-cancelar" onclick="fecharModalNivel()">Cancelar</button>
+      <button class="btn-confirmar" id="mnConfirmar" onclick="guardarNivel()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Despejo -->
+<div class="modal-overlay" id="modalDespejo" onclick="fecharModalDespejo(event)">
+  <div class="modal-sheet" onclick="event.stopPropagation()">
+    <div class="modal-handle"></div>
+    <div class="modal-titulo">Ordem de Despejo</div>
+    <div class="modal-sub" id="mdSub"></div>
+    <label style="font-size:13px;font-weight:600;color:#374151;display:block;margin-bottom:6px">Operador responsável</label>
+    <input class="modal-input" id="mdOperador" placeholder="Nome do operador" oninput="mdCheck()"/>
+    <div class="modal-btns">
+      <button class="btn-cancelar" onclick="fecharModalDespejo()">Cancelar</button>
+      <button class="btn-confirmar" id="mdConfirmar" onclick="confirmarDespejo()" style="background:#E2E8F0;color:#94A3B8;cursor:default">✅ Confirmar Despejo</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── Config ───────────────────────────────────────────────────────────────────
+const ESTACOES = [
+  {id:'est1', nome:'Estação 1', cor:'#2563EB', corClaro:'#EFF6FF', rsuCount:6},
+  {id:'est2', nome:'Estação 2', cor:'#059669', corClaro:'#ECFDF5', rsuCount:4},
+  {id:'est3', nome:'Estação 3', cor:'#DC2626', corClaro:'#FEF2F2', rsuCount:6},
+];
+const SYNC_KEYS = {est1:'estacao_residuos_v1', est2:'estacao_residuos_est2_v1', est3:'estacao_residuos_est3_v1'};
+const ESPECIAIS = [
+  {id:'madeiras',        nome:'Madeiras',            emoji:'🪵', cor:'#8B5E3C'},
+  {id:'verdes',          nome:'Verdes',              emoji:'🌿', cor:'#3A7D44'},
+  {id:'papel',           nome:'Papel',               emoji:'📄', cor:'#4A90D9'},
+  {id:'plasticos_emb',   nome:'Plást. Embalagens',   emoji:'🧴', cor:'#E6A817'},
+  {id:'plasticos_rijos', nome:'Plást. Rijos',        emoji:'🪣', cor:'#D46A1A'},
+  {id:'monstros',        nome:'Monstros',            emoji:'🛋️', cor:'#7B5EA7'},
+  {id:'vidro',           nome:'Vidro',               emoji:'🫙', cor:'#2E9C8A'},
+];
+
+// ─── Firebase ────────────────────────────────────────────────────────────────
+const firebaseConfig = {
+  apiKey: "AIzaSyA5Lzaiqm_4lTeMWed7paM922zq6tmpXEs",
+  authDomain: "residuos-dac52.firebaseapp.com",
+  databaseURL: "https://residuos-dac52-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "residuos-dac52",
+  storageBucket: "residuos-dac52.firebasestorage.app",
+  messagingSenderId: "877529109216",
+  appId: "1:877529109216:web:98c8fb2d320c3cd257f685"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+// ─── Estado ───────────────────────────────────────────────────────────────────
+const STORAGE_KEY = 'gestao_central_v1';
+let estado = carregarEstado();
+let tabAtual = 'visao';
+let vistaEst = null;
+let modalNivelCtx = null;
+let modalDespejoCtx = null;
+
+function carregarEstado() {
+  try { const s = localStorage.getItem(STORAGE_KEY); if (s) return JSON.parse(s); } catch{}
+  const estacoes = {};
+  ESTACOES.forEach(e => {
+    const esp = {}; ESPECIAIS.forEach(d => esp[d.id]={percentagem:0,ultimoRegisto:null});
+    const rsu = {}; for(let i=1;i<=e.rsuCount;i++) rsu[`rsu_${i}`]={percentagem:0,ultimoRegisto:null};
+    estacoes[e.id] = {especiais:esp, rsu};
+  });
+  return {estacoes, despejos:[], ultimaSync:null};
+}
+
+function guardarEstado() {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(estado)); } catch{}
+}
+
+// Escreve nível de um depósito no Firebase (chamado pela gestão central)
+function syncNivelFirebase(estId, depId, pct) {
+  const isRSU = depId.startsWith('rsu_');
+  const path = isRSU ? `estacoes/${estId}/rsu/${depId}` : `estacoes/${estId}/especiais/${depId}`;
+  db.ref(path).set({ percentagem: pct, ultimoRegisto: Date.now() }).catch(()=>{});
+}
+
+// Escreve despejo no Firebase
+function syncDespejoFirebase(despejo) {
+  db.ref('despejos').push(despejo).catch(()=>{});
+}
+
+// ─── Sync em tempo real ────────────────────────────────────────────────────────
+function iniciarSync() {
+  // Ouve cada estação em tempo real
+  ESTACOES.forEach(e => {
+    db.ref('estacoes/' + e.id).on('value', snapshot => {
+      const data = snapshot.val();
+      if (data && data.especiais && data.rsu) {
+        estado.estacoes[e.id] = { especiais: data.especiais, rsu: data.rsu };
+        estado.ultimaSync = Date.now();
+        guardarEstado();
+        render();
+      }
+    });
+  });
+
+  // Ouve despejos em tempo real
+  db.ref('despejos').on('value', snapshot => {
+    const data = snapshot.val();
+    if (data) {
+      estado.despejos = Object.values(data).sort((a,b) => a.timestamp - b.timestamp);
+      guardarEstado();
+      render();
+    }
+  });
+}
+
+function sincronizar() {
+  mostrarToast('🔄 A sincronizar...');
+  // Força releitura do Firebase
+  ESTACOES.forEach(e => {
+    db.ref('estacoes/' + e.id).once('value').then(snapshot => {
+      const data = snapshot.val();
+      if (data && data.especiais && data.rsu) {
+        estado.estacoes[e.id] = { especiais: data.especiais, rsu: data.rsu };
+        estado.ultimaSync = Date.now();
+        guardarEstado();
+        render();
+        mostrarToast('✅ Sincronizado');
+      }
+    }).catch(()=> mostrarToast('⚠️ Erro de ligação'));
+  });
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+function getNivel(pct) {
+  if (pct>=90) return {label:'CHEIO', bg:'#FEE2E2', color:'#DC2626'};
+  if (pct>=70) return {label:'ALTO',  bg:'#FEF3C7', color:'#D97706'};
+  if (pct>=40) return {label:'MÉDIO', bg:'#DBEAFE', color:'#2563EB'};
+  return              {label:'BAIXO', bg:'#D1FAE5', color:'#059669'};
+}
+function fmtDate(ts) {
+  if (!ts) return '—';
+  return new Date(ts).toLocaleString('pt-PT',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
+}
+function badgeHTML(pct) {
+  const n=getNivel(pct);
+  return `<span class="badge" style="background:${n.bg};color:${n.color}">${n.label}</span>`;
+}
+function barraHTML(pct, cor, h=8) {
+  const fill = pct>=90?'#DC2626':pct>=70?'#F59E0B':cor;
+  return `<div class="barra-wrap" style="height:${h}px"><div class="barra-fill" style="width:${pct}%;background:${fill};height:${h}px"></div></div>`;
+}
+function calcStats(estConf, estData) {
+  const all=[...ESPECIAIS.map(d=>estData.especiais[d.id]?.percentagem||0),...Array.from({length:estConf.rsuCount},(_,i)=>estData.rsu[`rsu_${i+1}`]?.percentagem||0)];
+  return {cheios:all.filter(p=>p>=90).length, total:all.length, media:Math.round(all.reduce((a,b)=>a+b,0)/all.length)};
+}
+function todosAlertas() {
+  const out=[];
+  ESTACOES.forEach(e=>{
+    const d=estado.estacoes[e.id];
+    ESPECIAIS.forEach(x=>{const p=d.especiais[x.id]?.percentagem||0;if(p>=90)out.push({...e,depId:x.id,depNome:x.nome,emoji:x.emoji,pct:p});});
+    for(let i=1;i<=e.rsuCount;i++){const p=d.rsu[`rsu_${i}`]?.percentagem||0;if(p>=90)out.push({...e,depId:`rsu_${i}`,depNome:`RSU #${i}`,emoji:'🗑️',pct:p});}
+  });
+  return out;
+}
+
+// ─── Render principal ─────────────────────────────────────────────────────────
+function render() {
+  const app = document.getElementById('app');
+  if (vistaEst) { app.innerHTML = renderDetalhe(vistaEst); return; }
+
+  const alertas = todosAlertas();
+  const totalDespejos = estado.despejos.length;
+
+  app.innerHTML = `
+    <div class="header">
+      <div class="header-sub">Central de Gestão</div>
+      <div class="header-title">Estações de Resíduos</div>
+      <div class="sync-row">
+        <span class="sync-ts">${estado.ultimaSync?'Sync '+fmtDate(estado.ultimaSync):'A aguardar sync...'}</span>
+        <button class="btn-sync" onclick="sincronizar()">🔄 Sincronizar</button>
+      </div>
+      <div class="resumo-grid">
+        <div class="resumo-card"><div class="resumo-label">Estações</div><div class="resumo-num">${ESTACOES.length}</div></div>
+        <div class="resumo-card"><div class="resumo-label">Alertas</div><div class="resumo-num" style="color:${alertas.length>0?'#FCA5A5':'#FFF'}">${alertas.length}</div></div>
+        <div class="resumo-card"><div class="resumo-label">Despejos</div><div class="resumo-num">${totalDespejos}</div></div>
+      </div>
+    </div>
+
+    <div class="tabs">
+      <button class="tab-btn ${tabAtual==='visao'?'active':''}" onclick="mudarTab('visao')">📊 Visão Geral</button>
+      <button class="tab-btn ${tabAtual==='alertas'?'active':''}" onclick="mudarTab('alertas')">⚠️ Alertas${alertas.length>0?' ('+alertas.length+')':''}</button>
+      <button class="tab-btn ${tabAtual==='despejos'?'active':''}" onclick="mudarTab('despejos')">🚛 Despejos</button>
+    </div>
+
+    <div class="content">
+      ${tabAtual==='visao' ? renderVisao() : ''}
+      ${tabAtual==='alertas' ? renderAlertas(alertas) : ''}
+      ${tabAtual==='despejos' ? renderDespejos() : ''}
+    </div>
+  `;
+}
+
+function renderVisao() {
+  return ESTACOES.map(est=>{
+    const d=estado.estacoes[est.id];
+    const s=calcStats(est,d);
+    const urgentes=[];
+    ESPECIAIS.forEach(x=>{const p=d.especiais[x.id]?.percentagem||0;if(p>=70)urgentes.push({nome:x.nome,emoji:x.emoji,pct:p});});
+    for(let i=1;i<=est.rsuCount;i++){const p=d.rsu[`rsu_${i}`]?.percentagem||0;if(p>=70)urgentes.push({nome:`RSU #${i}`,emoji:'🗑️',pct:p});}
+    const nv=getNivel(s.media);
+    return `
+      <div class="card-est ${s.cheios>0?'alerta':''}">
+        <div class="card-est-top">
+          <div style="display:flex;align-items:center;gap:10px">
+            <div class="card-est-icon" style="background:${est.corClaro}">
+              <div style="width:16px;height:16px;border-radius:4px;background:${est.cor}"></div>
+            </div>
+            <div>
+              <div class="card-est-nome">${est.nome}</div>
+              <div class="card-est-sub">${s.total} depósitos</div>
+            </div>
+          </div>
+          <div style="text-align:right">
+            ${s.cheios>0?`<div style="font-size:12px;font-weight:700;color:#DC2626;margin-bottom:2px">⚠️ ${s.cheios} cheio${s.cheios>1?'s':''}</div>`:''}
+            <div style="font-size:12px;color:#94A3B8">Média: <b style="color:#0F172A">${s.media}%</b></div>
+          </div>
+        </div>
+        ${barraHTML(s.media, est.cor, 10)}
+        ${urgentes.length>0?`<div class="tags-urgentes">${urgentes.map(u=>{const n=getNivel(u.pct);return `<span class="tag-urgente" style="background:${n.bg};color:${n.color}">${u.emoji} ${u.nome} ${u.pct}%</span>`;}).join('')}</div>`:''}
+        <button class="btn-detalhe" style="border:1.5px solid ${est.cor}25;background:${est.corClaro};color:${est.cor}" onclick="abrirDetalhe('${est.id}')">Ver Detalhes →</button>
+      </div>`;
+  }).join('');
+}
+
+function renderAlertas(alertas) {
+  if (!alertas.length) return '<div class="vazio">✅ Sem alertas ativos</div>';
+  return alertas.map(a=>`
+    <div class="alerta-card">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <div style="font-weight:700;color:#0F172A;font-size:14px">${a.emoji} ${a.depNome}</div>
+          <div style="font-size:12px;color:#64748B;margin-top:2px"><span style="font-weight:700;color:${a.cor}">●</span> ${a.nome}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-weight:800;font-size:20px;color:#DC2626">${a.pct}%</span>
+          <button onclick="abrirDetalhe('${a.id}')" style="background:#0F172A;border:none;color:#FFF;border-radius:9px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif">Gerir</button>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+function renderDespejos() {
+  if (!estado.despejos.length) return '<div class="vazio">Sem despejos registados</div>';
+  return [...estado.despejos].reverse().map(d=>{
+    const est=ESTACOES.find(e=>e.id===d.estacaoId);
+    return `
+      <div class="despejo-card" style="border-left:4px solid ${est?.cor||'#10B981'}">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+          <div>
+            <div style="font-weight:700;color:#0F172A;font-size:14px">${d.depositoNome}</div>
+            <div style="font-size:12px;color:#64748B;margin-top:2px"><span style="font-weight:700;color:${est?.cor}">●</span> ${est?.nome||''}</div>
+            <div style="font-size:12px;color:#64748B;margin-top:2px">👤 ${d.operador}</div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-size:11px;font-weight:700;color:#10B981">✅ Despejado</div>
+            <div style="font-size:11px;color:#94A3B8;margin-top:2px">${fmtDate(d.timestamp)}</div>
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+// ─── Vista Detalhe ─────────────────────────────────────────────────────────────
+function renderDetalhe(estId) {
+  const est = ESTACOES.find(e=>e.id===estId);
+  const d = estado.estacoes[estId];
+  const despejosEst = estado.despejos.filter(x=>x.estacaoId===estId);
+
+  function depRow(id, nome, emoji, pct, ultimoRegisto) {
+    const nv=getNivel(pct);
+    const ult=despejosEst.filter(x=>x.depositoId===id).slice(-1)[0];
+    return `
+      <div class="dep-card" style="border-left-color:${pct>=90?'#DC2626':est.cor}">
+        <div class="dep-top">
+          <div class="dep-info">
+            <span style="font-size:20px">${emoji}</span>
+            <div>
+              <div class="dep-nome">${nome}</div>
+              ${ultimoRegisto?`<div class="dep-ts">${fmtDate(ultimoRegisto)}</div>`:''}
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px">
+            ${badgeHTML(pct)}
+            <span class="dep-pct" style="color:${pct>=90?'#DC2626':est.cor}">${pct}%</span>
+          </div>
+        </div>
+        ${barraHTML(pct, est.cor)}
+        ${ult?`<div class="dep-ultimo-despejo">🚛 Último despejo: ${fmtDate(ult.timestamp)} · ${ult.operador}</div>`:''}
+        <div class="dep-btns">
+          <button class="btn-nivel" style="border:1.5px solid ${est.cor}30;background:${est.corClaro};color:${est.cor}"
+            onclick="abrirModalNivel('${estId}','${id}','${nome}',${pct},'${est.cor}')">✏️ Nível</button>
+          <button class="btn-despejo ${pct>=90?'urgente':''}"
+            onclick="abrirModalDespejo('${estId}','${id}','${nome}','${est.nome}')">🚛 Despejo</button>
+        </div>
+      </div>`;
+  }
+
+  const ultDespejos = [...despejosEst].reverse().slice(0,8);
+
+  return `
+    <div>
+      <div class="detalhe-header" style="background:linear-gradient(135deg,${est.cor} 0%,${est.cor}DD 100%)">
+        <button class="btn-voltar" onclick="voltarLista()">← Voltar</button>
+        <div style="font-size:11px;color:rgba(255,255,255,.65);letter-spacing:1.5px;text-transform:uppercase">Detalhe</div>
+        <div style="font-family:'Space Grotesk',sans-serif;font-size:24px;font-weight:800">${est.nome}</div>
+        <div style="font-size:13px;color:rgba(255,255,255,.7);margin-top:4px">${ESPECIAIS.length} especiais · ${est.rsuCount} RSU</div>
+      </div>
+      <div style="padding:16px 16px 0">
+        <div class="section-label">Depósitos Especiais</div>
+        ${ESPECIAIS.map(x=>depRow(x.id,x.nome,x.emoji,d.especiais[x.id]?.percentagem||0,d.especiais[x.id]?.ultimoRegisto)).join('')}
+        <div class="section-label">RSU</div>
+        ${Array.from({length:est.rsuCount},(_,i)=>{const id=`rsu_${i+1}`;return depRow(id,`RSU #${i+1}`,'🗑️',d.rsu[id]?.percentagem||0,d.rsu[id]?.ultimoRegisto);}).join('')}
+        ${ultDespejos.length>0?`
+          <div class="section-label">Ordens de Despejo</div>
+          ${ultDespejos.map(x=>`
+            <div style="background:#FFF;border-radius:12px;padding:12px 14px;margin-bottom:8px;border-left:3px solid #10B981;box-shadow:0 1px 4px rgba(0,0,0,.05)">
+              <div style="display:flex;justify-content:space-between">
+                <span style="font-weight:700;color:#0F172A;font-size:14px">${x.depositoNome}</span>
+                <span style="font-size:12px;color:#10B981;font-weight:600">✅ Despejado</span>
+              </div>
+              <div style="font-size:12px;color:#64748B;margin-top:3px">👤 ${x.operador} · 🕒 ${fmtDate(x.timestamp)}</div>
+            </div>`).join('')}
+        `:''}
+      </div>
+    </div>`;
+}
+
+// ─── Navegação ────────────────────────────────────────────────────────────────
+function mudarTab(t) { tabAtual=t; render(); }
+function abrirDetalhe(id) { vistaEst=id; render(); window.scrollTo(0,0); }
+function voltarLista() { vistaEst=null; render(); window.scrollTo(0,0); }
+
+// ─── Modal Nível ──────────────────────────────────────────────────────────────
+function abrirModalNivel(estId, depId, nome, pct, cor) {
+  modalNivelCtx = {estId, depId, nome, cor};
+  document.getElementById('mnSub').textContent = ESTACOES.find(e=>e.id===estId).nome+' · '+nome;
+  document.getElementById('mnSlider').value = pct;
+  document.getElementById('mnSlider').style.accentColor = cor;
+  document.getElementById('mnVal').textContent = pct+'%';
+  document.getElementById('mnVal').style.color = cor;
+  document.getElementById('mnConfirmar').style.background = cor;
+  renderMnAtalhos(pct, cor);
+  document.getElementById('modalNivel').classList.add('open');
+}
+function mnUpdate(v) {
+  document.getElementById('mnVal').textContent=v+'%';
+  renderMnAtalhos(Number(v), modalNivelCtx.cor);
+}
+function renderMnAtalhos(sel, cor) {
+  document.getElementById('mnAtalhos').innerHTML=[0,25,50,75,90,100].map(v=>
+    `<button class="btn-atalho ${v==sel?'sel':''}" style="--cor:${cor}" onclick="mnAtalho(${v})">${v}%</button>`
+  ).join('');
+}
+function mnAtalho(v) { document.getElementById('mnSlider').value=v; mnUpdate(v); }
+function fecharModalNivel(e) {
+  if(e&&e.target!==document.getElementById('modalNivel')) return;
+  document.getElementById('modalNivel').classList.remove('open');
+}
+function guardarNivel() {
+  const {estId,depId} = modalNivelCtx;
+  const pct = Number(document.getElementById('mnSlider').value);
+  const isRSU = depId.startsWith('rsu_');
+  if(isRSU) estado.estacoes[estId].rsu[depId]={percentagem:pct,ultimoRegisto:Date.now()};
+  else estado.estacoes[estId].especiais[depId]={percentagem:pct,ultimoRegisto:Date.now()};
+  guardarEstado();
+  syncNivelFirebase(estId, depId, pct);
+  document.getElementById('modalNivel').classList.remove('open');
+  render();
+  mostrarToast('✅ Nível atualizado');
+}
+
+// ─── Modal Despejo ────────────────────────────────────────────────────────────
+function abrirModalDespejo(estId, depId, depNome, estNome) {
+  modalDespejoCtx = {estId, depId, depNome};
+  document.getElementById('mdSub').textContent = estNome+' · '+depNome;
+  document.getElementById('mdOperador').value = '';
+  document.getElementById('mdConfirmar').style.background='#E2E8F0';
+  document.getElementById('mdConfirmar').style.color='#94A3B8';
+  document.getElementById('mdConfirmar').style.cursor='default';
+  document.getElementById('modalDespejo').classList.add('open');
+  setTimeout(()=>document.getElementById('mdOperador').focus(),300);
+}
+function mdCheck() {
+  const ok = document.getElementById('mdOperador').value.trim().length>=2;
+  const btn = document.getElementById('mdConfirmar');
+  btn.style.background = ok?'#0F172A':'#E2E8F0';
+  btn.style.color = ok?'#FFF':'#94A3B8';
+  btn.style.cursor = ok?'pointer':'default';
+}
+function fecharModalDespejo(e) {
+  if(e&&e.target!==document.getElementById('modalDespejo')) return;
+  document.getElementById('modalDespejo').classList.remove('open');
+}
+function confirmarDespejo() {
+  const op = document.getElementById('mdOperador').value.trim();
+  if(op.length<2) return;
+  const {estId,depId,depNome} = modalDespejoCtx;
+  const despejo = {estacaoId:estId,depositoId:depId,depositoNome:depNome,operador:op,timestamp:Date.now()};
+  estado.despejos.push(despejo);
+  guardarEstado();
+  syncDespejoFirebase(despejo);
+  document.getElementById('modalDespejo').classList.remove('open');
+  render();
+  mostrarToast('🚛 Despejo registado');
+}
+
+// ─── Toast ────────────────────────────────────────────────────────────────────
+let toastTmr;
+function mostrarToast(msg) {
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  clearTimeout(toastTmr); toastTmr=setTimeout(()=>t.classList.remove('show'),2500);
+}
+
+// ─── Service Worker ───────────────────────────────────────────────────────────
+if('serviceWorker' in navigator){
+  const sw=`const C='gestao-v1';self.addEventListener('install',e=>{e.waitUntil(caches.open(C).then(c=>c.addAll([self.registration.scope])));self.skipWaiting();});self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==C).map(k=>caches.delete(k)))));self.clients.claim();});self.addEventListener('fetch',e=>{e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request).catch(()=>caches.match(e.request))));});`;
+  const blob=new Blob([sw],{type:'application/javascript'});
+  navigator.serviceWorker.register(URL.createObjectURL(blob)).catch(()=>{});
+}
+
+// ─── PWA Install ──────────────────────────────────────────────────────────────
+let deferredPrompt=null;
+window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredPrompt=e;});
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+iniciarSync();
+render();
+</script>
+</body>
+</html>
